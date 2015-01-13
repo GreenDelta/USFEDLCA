@@ -30,25 +30,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.commons.lang3.StringUtils;
 import org.openlca.util.Strings;
 import org.openlca.io.FileImport;
 import org.openlca.io.ImportEvent;
 import org.openlca.io.KeyGen;
 import org.openlca.io.UnitMapping;
-
 import gov.usda.nal.lci.template.excel.MappingCells;
 import gov.usda.nal.lci.template.keys.UsdaKeyGen;
-
 import org.openlca.io.maps.FlowMap;
 import org.openlca.io.maps.MapType;
-
 import gov.usda.nal.lci.template.support.IDataSet;
-
-
 import org.openlca.core.database.IDatabase;
 import org.openlca.core.model.Actor;
+import org.openlca.core.model.AllocationFactor;
+import org.openlca.core.model.AllocationMethod;
 import org.openlca.core.model.Category;
 import org.openlca.core.model.Exchange;
 import org.openlca.core.model.Location;
@@ -58,12 +54,16 @@ import org.openlca.core.model.ProcessDocumentation;
 import org.openlca.core.model.Source;
 import org.openlca.core.model.Uncertainty;
 import org.openlca.core.model.UncertaintyType;
+import org.openlca.ecospold.IAllocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import com.google.common.eventbus.EventBus;
 /**
- * Parses a USDA Excel Template and creates OpenLCA objects and inserts them into a database
+ * Parses a USDA Excel Template and creates OpenLCA objects and inserts them into a database.  For better or
+ * worse, the template import process is modeled after the OpenLCA Ecospold-1 import process.  Understanding the classes in
+ * the olca-ecospold-1 module and the org.openlca.io.ecospold1.importer package will help explain how the template
+ * importer functions. 
+ * 
  * @author Y Radchenko
  *
  */
@@ -278,18 +278,18 @@ public class USFedLCATemplateImport implements FileImport {
 				mapProcessEntities(dataSet, process, documentation);
 
 			/*
-			 * if (dataSet.getAllocations() != null &&
-			 * dataSet.getAllocations().size() > 0) { mapAllocations(process,
-			 * dataSet.getAllocations());
-			 * process.setDefaultAllocationMethod(AllocationMethod.CAUSAL); ask
-			 * }
-			 */
+			  if (dataSet.getAllocations() != null &&
+					  dataSet.getAllocations().size() > 0) { mapAllocations(process,
+							  dataSet.getAllocations());
+					  process.setDefaultAllocationMethod(AllocationMethod.CAUSAL); 
+			  }
+			*/
 			Mapper.mapCostCategoryEntities(dataSet.getProcessInformation()
 					.getCosts(), process);
 
 			mapActors(documentation, dataSet);
 			mapSources(documentation, dataSet);
-
+			mapAllocations(process,dataSet);
 			db.put(process, processId);
 			log.info("Process {} has been saved ", processId);
 		} catch (Exception e) {
@@ -320,18 +320,21 @@ public class USFedLCATemplateImport implements FileImport {
 	private void mapExchangesEntities(
 			List<gov.usda.nal.lci.template.domain.Exchange> inExchanges,
 			Process ioProcess) {
-
+		List<IAllocation> allocationlist=new ArrayList<IAllocation>();
+		int exchangecnt=0;
 		for (gov.usda.nal.lci.template.domain.Exchange inExchange : inExchanges) {
 			try {
 				if ( inExchange.getAmountValue() == null ) {
 					log.info("Blank amount for "+inExchange.getFlowName()+" will be ignored.");
 					continue;
 				}
+				
 				FlowBucket flow = flowImport.handleProcessExchange(inExchange);
 				if (flow == null || !flow.isValid()) {
 					log.error("Could not import flow {}", inExchange);
 					continue;
 				}
+			
 				Exchange outExchange = new Exchange();
 				outExchange.setPedigreeUncertainty(inExchange
 						.getDataQualityComment());
@@ -339,9 +342,6 @@ public class USFedLCATemplateImport implements FileImport {
 				outExchange.setUnit(flow.unit);
 				outExchange.setFlowPropertyFactor(flow.flowProperty);
 				outExchange.setInput(inExchange.getInputGroup() != null);
-				/** TO DO -- THIS IS WRONG!	*/
-				//outExchange.setAmountFormula(inExchange.getFormula());
-				// SHOULD BE THIS
 				outExchange.setAmountFormula(inExchange.getParameterName());
 				ExchangeAmount exchangeAmount = new ExchangeAmount(outExchange,
 						inExchange);
@@ -392,12 +392,13 @@ public class USFedLCATemplateImport implements FileImport {
 							UncertaintyType.UNIFORM)) {
 						uncertainty.setParameter1Value(inExchange
 								.getMinValue());
-						uncertainty.setParameter2Value(inExchange
+						uncertainty.setParameter3Value(inExchange
 								.getMaxValue());
 						outExchange.setUncertainty(uncertainty);
 					}
 
 				}
+				localExchangeCache.put(exchangecnt++, outExchange);
 			} catch (Exception e) {
 
 			}
@@ -433,22 +434,6 @@ public class USFedLCATemplateImport implements FileImport {
 
 	}
 
-	/*
-	 * private void mapAllocations(Process process, List<IAllocation>
-	 * allocations) { for (IAllocation allocation : allocations) { double factor
-	 * = Math.round(allocation.getFraction() * 10000d) / 1000000d; Exchange
-	 * product = localExchangeCache.get(allocation .getReferenceToCoProduct());
-	 * for (Integer i : allocation.getReferenceToInputOutput()) { Exchange
-	 * exchange = localExchangeCache.get(i); if (exchange == null) {
-	 * log.warn("allocation factor points to an exchange that " +
-	 * "does not exist: {}", i); continue; } AllocationFactor allocationFactor =
-	 * new AllocationFactor();
-	 * allocationFactor.setProductId(product.getFlow().getId());
-	 * allocationFactor.setValue(factor);
-	 * allocationFactor.setAllocationType(AllocationMethod.CAUSAL);
-	 * allocationFactor.setExchange(exchange);
-	 * process.getAllocationFactors().add(allocationFactor); } } }
-	 */
 
 	private void mapProcessEntities(IDataSet dataSet, Process ioProcess,
 			ProcessDocumentation doc) {
@@ -510,6 +495,7 @@ public class USFedLCATemplateImport implements FileImport {
 		return builder.toString();
 
 	}
+	
 
 	private void mapSources(ProcessDocumentation doc, IDataSet dataSet) {
 		Map<Long, Source> sources = new HashMap<Long, Source>();
@@ -520,13 +506,74 @@ public class USFedLCATemplateImport implements FileImport {
 					UsdaKeyGen.forSource(isource));
 			if (s_data != null) {
 				sources.put(isource.getId(), s_data);
+				doc.getSources().add(s_data);
 				doc.setPublication(sources.get(isource.getId()));
 				sourceList.add(s_data);
 
 			}
 		}
-		//doc.setSources(sourceList);
 
 	}
-
+	private void mapAllocations(Process process, IDataSet dataset) {
+		for ( gov.usda.nal.lci.template.domain.Allocation ialloc : dataset.getAllocations() )
+		{
+			for ( int i=0;i<localExchangeCache.size();i++ )
+			{
+				Exchange product=localExchangeCache.get(i);
+				if ( product.getFlow().getName().equals(ialloc.getReferenceToCoProduct()))
+				{
+					AllocationFactor allocationFactor = new AllocationFactor();
+					allocationFactor.setProductId(product.getFlow().getId());
+					allocationFactor.setValue(ialloc.getValue());
+					allocationFactor.setAllocationType(ialloc.getAllocationMethod());
+					// get flow exchange for Causal 
+					if ( ialloc.getAllocationMethod() == AllocationMethod.CAUSAL)
+					{
+						//find exchange to make 
+						int n=findAllocationExchangeFromLocalExchangeCache(ialloc);
+						if ( n >= 0 )
+							allocationFactor.setExchange(localExchangeCache.get(n));
+						else {
+							log.error("Cannot find exchange for "+ialloc.getReferenceToInputOutput());
+						}
+							
+					}
+					process.getAllocationFactors().add(allocationFactor);
+					break;
+				}
+			}
+		}
+		/*
+		for (IAllocation allocation : allocations) {
+			double factor = Math.round(allocation.getFraction() * 10000d) / 1000000d;
+			Exchange product = localExchangeCache.get(allocation
+					.getReferenceToCoProduct());
+			for (Integer i : allocation.getReferenceToInputOutput()) {
+				Exchange exchange = localExchangeCache.get(i);
+				if (exchange == null) {
+					log.warn("allocation factor points to an exchange that "
+							+ "does not exist: {}", i);
+					continue;
+				}
+				AllocationFactor allocationFactor = new AllocationFactor();
+				allocationFactor.setProductId(product.getFlow().getId());
+				allocationFactor.setValue(factor);
+				allocationFactor.setAllocationType(AllocationMethod.CAUSAL);
+				allocationFactor.setExchange(exchange);
+				process.getAllocationFactors().add(allocationFactor);
+			}
+		}*/
+	}
+	private int findAllocationExchangeFromLocalExchangeCache(gov.usda.nal.lci.template.domain.Allocation a)
+	{
+		int j=-1;
+		for ( int i=0;i<localExchangeCache.size();i++) {
+			if ( localExchangeCache.get(i).getFlow().getName().equals(a.getReferenceToInputOutput()))
+			{
+				j=i;
+				break;
+			}
+		}
+		return j;
+	}
 }
