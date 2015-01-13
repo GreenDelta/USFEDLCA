@@ -142,13 +142,12 @@ class Mapper {
 				Uncertainty uncertainty = new Uncertainty();
 				uncertainty.setDistributionType(inParameter
 						.getUncertaintyType());
-				
 				if (inParameter.getUncertaintyType().equals(
 						UncertaintyType.LOG_NORMAL)) {
 					double gmean = inParameter.getExpectedValue();
-					double gsd = inParameter.getDispersion();
+					uncertainty.setParameter2Value(Double.valueOf(inParameter.getDispersion()!=null?inParameter.getDispersion():0));
 					uncertainty.setParameter1Value(gmean);
-					uncertainty.setParameter2Value(gsd);
+				
 					outParameter.setUncertainty(uncertainty);
 				}
 				else if (inParameter.getUncertaintyType().equals(

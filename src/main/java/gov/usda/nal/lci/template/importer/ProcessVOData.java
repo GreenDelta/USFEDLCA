@@ -42,6 +42,7 @@ import gov.usda.nal.lci.template.vo.ModelingAndValidationVO;
 import gov.usda.nal.lci.template.vo.ParametersVO;
 import gov.usda.nal.lci.template.vo.ProcessInformationVO;
 import gov.usda.nal.lci.template.vo.SourceInformationVO;
+import gov.usda.nal.lci.template.vo.AllocationVO;
 import gov.usda.nal.lci.template.domain.AdministrativeInformation;
 import gov.usda.nal.lci.template.domain.Costs;
 import gov.usda.nal.lci.template.domain.InternationalStandardIndustrialClassification;
@@ -56,7 +57,9 @@ import gov.usda.nal.lci.template.domain.Geography;
 import gov.usda.nal.lci.template.domain.ProcessInformation;
 import gov.usda.nal.lci.template.domain.Technology;
 import gov.usda.nal.lci.template.domain.Time;
+import gov.usda.nal.lci.template.domain.Allocation;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -66,8 +69,15 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.openlca.core.model.AllocationMethod;
 import org.openlca.core.model.UncertaintyType;
-
+/**
+ * <code>ProcessVOData</code> is a class for transferring the contents of the worksheets which have been
+ * stored in "VO" objects to "domain" objects which are then written to the database in {@link
+ * gov.usda.nal.lci.template.importer.USFedLCATemplateImport}.
+ * @author Y.Radchenko
+ *
+ */
 public class ProcessVOData {
 
 	private static final Log LOG = LogFactory.getLog(ProcessVOData.class);
@@ -79,6 +89,7 @@ public class ProcessVOData {
 	private List<ActorVO> actorVO;
 	private List<SourceInformationVO> sourceVO;
 	private List<CostsVO> costsVO;
+	private List<AllocationVO> allocationVO;
 	private IDataSet dataSet = new UsdaTemplateDataSet();
 
 	public IDataSet getDataSet() {
@@ -96,7 +107,7 @@ public class ProcessVOData {
 	public ProcessVOData(List<ExchangeDataVO> exchangeDataVO,
 			ProcessInformationVO generalInfoVO,
 			AdministrativeInformationVO admVO, ModelingAndValidationVO modVO,
-			List<ParametersVO> parameterVO, 
+			List<ParametersVO> parameterVO, List<AllocationVO> allocationVO,
 			List<ActorVO> actorVO, List<SourceInformationVO> sourceVO,
 			List<CostsVO> costsVO) {
 		
@@ -105,10 +116,15 @@ public class ProcessVOData {
 		this.admVO = admVO;
 		this.modVO = modVO;
 		this.parameterVO = parameterVO;
+		this.allocationVO=allocationVO;
 		this.actorVO  = actorVO;
 		this.sourceVO = sourceVO;
 		this.costsVO  = costsVO;
 	}
+	/**
+	 * Constructor which uses {@link gov.usda.nal.lci.template.excel.MappingCells} objects
+	 * @param cells
+	 */
 public ProcessVOData(MappingCells cells){
 	this.exchangeDataVO = cells.getExchangeData();
 	this.generalInfoVO  = cells.getProcessData();
@@ -118,14 +134,14 @@ public ProcessVOData(MappingCells cells){
 	this.actorVO  = cells.getActorData();
 	this.sourceVO = cells.getSourceInformationData();
 	this.costsVO  = cells.getCostsDataVO();
+	this.allocationVO=cells.getAllocationVO();
 }
+/**
+ * <code>run</code> converts VO objects which have been parsed from the worksheets into "domain" objects.  The domain objects
+ * are then assigned to the dataSet and later written to the database 
+ * @see gov.usda.nal.lci.template.importer.USFedLCATemplateImport#parseProcessDataSet.
+ */
 	public void run() {
-
-		// get isic info list by code
-		//String code = generalInfoVO.getCodeIsic();
-		//InternationalStandardIndustrialClassification isiClassification = getInternationalStandardIndustrialClassificationByCode(isicDataVO, code);
-
-		// convert data from vo to pojo
 		AdministrativeInformation adm = makeAdministrativeInformation(admVO);
 		ModellingAndValidation mod    = makeModelingAndValidation(modVO);
 		List<Parameter> parameters    = makeParameter(parameterVO);
@@ -134,12 +150,11 @@ public ProcessVOData(MappingCells cells){
 		List<Costs> costs			  = makeCosts(costsVO);
 		ProcessInformation process    = makeProcessInfo(generalInfoVO, parameters, mod, adm, costs);
 		List<Exchange> exchanges      = makeExchange(exchangeDataVO, generalInfoVO);
+		List<Allocation> allocations = makeAllocationList(allocationVO);
 		ReferenceFunction refFunction = makeReferenceFunction(process,
 				exchanges, modVO);
-
-		// store data in a memory
 		dataSet.initializeData(persons, sources, process, exchanges,
-				parameters, refFunction);
+				parameters, allocations,refFunction);
 
 	}
 
@@ -415,6 +430,7 @@ public ProcessVOData(MappingCells cells){
 		Time timeinfo = new Time();
 		timeinfo.setStartDate(convertDate(generalInfoVO.getStartDate()));
 		timeinfo.setEndDate(convertDate(generalInfoVO.getEndDate()));
+		
 		timeinfo.setTimeComment(generalInfoVO.getTimeComment());
 		process.setTimeInfo(timeinfo);
 		
@@ -438,7 +454,241 @@ public ProcessVOData(MappingCells cells){
 		return process;
 
 	}
-
+	/**
+	 * Transfers the contents which have been parsed from the template's Allocation worksheet and stored as {@link gov.usda.nal.lci.template.vo.AllocationVO} objects 
+	 * into a list of {@link gov.usda.nal.lci.template.domain.Allocation} objects.  The domain object list is then used to build AllocationFactors objects before insertion into 
+	 * the database in {@link gov.usda.nal.lci.template.importer.USFedLCATemplateImport#mapAllocations}.
+	 *
+	 * Important: There are "hardcoded" dependencies in the AllocationVO list and the cell locations from which they are derived in the
+	 * template's Allocation worksheet.  If the cell locations change in the worksheet then most likely the
+	 * structure and locations of the AllocationVO list will need to change.  For example:  co-products are located in offset 0 of the AllocationVO list because that's the order in which they
+	 * appear in the worksheet.
+	 * @param allocationVO
+	 * @return List<Allocation> -- list of Allocation objects
+	 */
+	private List<Allocation> makeAllocationList(List<AllocationVO> allocationVO)
+	{
+		List<Allocation> allocations=new ArrayList<Allocation>();
+		allocations.addAll(makeAllocations(allocationVO.get(1),allocationVO.get(0),AllocationMethod.PHYSICAL));
+		allocations.addAll(makeAllocations(allocationVO.get(2),allocationVO.get(0),AllocationMethod.ECONOMIC));
+		allocations.addAll(makeCausalAllocations(allocationVO,allocationVO.get(0)));
+		return allocations;
+	}
+	/**
+	 * <code>makeCausalAlloctions</code> creates a list of {@link gov.usda.nal.lci.template.domain.Allocation}
+	 * objects with an AllocationMethod of CAUSAL.
+	 * @param avol
+	 * @param coprods
+	 * @return
+	 */
+	private List<Allocation> makeCausalAllocations(List<AllocationVO> avol,AllocationVO coprods)
+	{
+		List<Allocation> al=new ArrayList<Allocation>();
+		
+		if ( coprods.getCoprod() != null )
+		{
+			for ( int i=7;i<avol.size();i++)
+			{
+				if ( avol.get(i).getFlowName() != null )
+					al.addAll(makeAllocations(avol.get(i),coprods,AllocationMethod.CAUSAL));
+			}
+		}
+		return al;
+	}
+	/**
+	 * For each co-product which has been parsed from the template's Allocation worksheet, we build an
+	 * {@link gov.usda.nal.lci.template.domain.Allocation} object and add it to the list.  Note that co-products
+	 * and exchanges (flows) are stored as String objects which will are used later to link to exchanges
+	 * prior to insertion of AllocationFactors into the database.  
+	 * @
+	 * @param avo  -- the list of AllocationVO objects parsed from the template worksheet
+	 * @param coprods -- the list of coproducts parsed from the AllocationVO list at offset 0
+	 * @param method
+	 * @return
+	 */
+	private List<Allocation> makeAllocations(AllocationVO avo,AllocationVO coprods,AllocationMethod method)
+	{
+		List<Allocation> al=new ArrayList<Allocation>();
+		if ( avo.getCoprod() != null ) {
+			Allocation a=new Allocation();
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setAllocationMethod(method);
+			a.setReferenceToCoProduct(coprods.getCoprod());
+			a.setValue(Float.valueOf(avo.getCoprod()));
+			al.add(a);
+		}
+		if ( avo.getCoprod1() != null ) {
+			Allocation a=new Allocation();
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setAllocationMethod(method);
+			a.setReferenceToCoProduct(coprods.getCoprod1());
+			a.setValue(Float.valueOf(avo.getCoprod1()));
+			al.add(a);
+		}
+		if ( avo.getCoprod2() != null ) {
+			Allocation a=new Allocation();
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setAllocationMethod(method);
+			a.setReferenceToCoProduct(coprods.getCoprod2());
+			a.setValue(Float.valueOf(avo.getCoprod2()));
+			al.add(a);
+		}
+		if ( avo.getCoprod3() != null ) {
+			Allocation a=new Allocation();
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setAllocationMethod(method);
+			a.setReferenceToCoProduct(coprods.getCoprod3());
+			a.setValue(Float.valueOf(avo.getCoprod3()));
+			al.add(a);
+		}
+		if ( avo.getCoprod4() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod4());
+			a.setValue(Float.valueOf(avo.getCoprod4()));
+			al.add(a);
+		}
+		if ( avo.getCoprod5() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod5());
+			a.setValue(Float.valueOf(avo.getCoprod5()));
+			al.add(a);
+		}
+		if ( avo.getCoprod6() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod6());
+			a.setValue(Float.valueOf(avo.getCoprod6()));
+			al.add(a);
+		}
+		if ( avo.getCoprod7() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod7());
+			a.setValue(Float.valueOf(avo.getCoprod7()));
+			al.add(a);
+		}
+		if ( avo.getCoprod8() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod8());
+			a.setValue(Float.valueOf(avo.getCoprod8()));
+			al.add(a);
+		}
+		if ( avo.getCoprod9() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod9());
+			a.setValue(Float.valueOf(avo.getCoprod9()));
+			al.add(a);
+		}
+		if ( avo.getCoprod10() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod10());
+			a.setValue(Float.valueOf(avo.getCoprod10()));
+			al.add(a);
+		}
+		if ( avo.getCoprod11() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod11());
+			a.setValue(Float.valueOf(avo.getCoprod11()));
+			al.add(a);
+		}
+		if ( avo.getCoprod12() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod12());
+			a.setValue(Float.valueOf(avo.getCoprod12()));
+			al.add(a);
+		}
+		if ( avo.getCoprod13() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			a.setReferenceToCoProduct(coprods.getCoprod13());
+			a.setValue(Float.valueOf(avo.getCoprod13()));
+			al.add(a);
+		}
+		if ( avo.getCoprod14() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod14());
+			a.setValue(Float.valueOf(avo.getCoprod14()));
+			al.add(a);
+		}
+		if ( avo.getCoprod15() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod15());
+			a.setValue(Float.valueOf(avo.getCoprod15()));
+			al.add(a);
+		}
+		if ( avo.getCoprod16() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod16());
+			a.setValue(Float.valueOf(avo.getCoprod16()));
+			al.add(a);
+		}
+		if ( avo.getCoprod17() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod17());
+			a.setValue(Float.valueOf(avo.getCoprod17()));
+			al.add(a);
+		}
+		if ( avo.getCoprod18() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod18());
+			a.setValue(Float.valueOf(avo.getCoprod18()));
+			al.add(a);
+		}
+		if ( avo.getCoprod19() != null ) {
+			Allocation a=new Allocation();
+			a.setAllocationMethod(method);
+			if ( avo.getFlowName() != null )
+				a.setReferenceToInputOutput(avo.getFlowName());
+			a.setReferenceToCoProduct(coprods.getCoprod19());
+			a.setValue(Float.valueOf(avo.getCoprod19()));
+			al.add(a);
+		}
+		return al;
+	}
 	/**
 	 * mapping domain.Exchange fields
 	 * 
@@ -476,7 +726,6 @@ public ProcessVOData(MappingCells cells){
 				exchange.setAmountValue(Double.parseDouble(vo.getAmount()));
 			}
 			if (StringUtils.isNotBlank(vo.getParameterName())) {
-				System.out.println("parameter name="+vo.getParameterName());
 				exchange.setParameterName(vo.getParameterName());
 			}
 			if (StringUtils.isNotBlank(vo.getProvider())) {
@@ -567,17 +816,13 @@ public ProcessVOData(MappingCells cells){
 	 * 
 	 * @param sDate
 	 *            String
-	 * @return date type in format yyyy-MM-dd
+	 * @return Date
 	 */
 	@SuppressWarnings("static-access")
 	private Date convertDate(String sDate) {
 
 		try {
-			String[] dateFormats = new String[] { "MM/dd/yyyy", "yyyy-MM-dd" };
-			DateUtils du = new DateUtils();
-			Date convertedDate = du.parseDate(sDate, dateFormats);
-
-			return convertedDate;
+			return new SimpleDateFormat("MM/dd/yyyy").parse(sDate);
 
 		} catch (Exception e) {
 			LOG.error("Cannot convert date: " + sDate, e);
@@ -590,10 +835,10 @@ public ProcessVOData(MappingCells cells){
 		if ( StringUtils.isNotBlank(type))
 		{
 			String t=type.toUpperCase();
-			if ( t.contains("NORMAL"))
-				uncertaintyType=UncertaintyType.NORMAL;
-			else if (t.contains("LOG"))
+			if ( t.contains("LOG"))
 				uncertaintyType=UncertaintyType.LOG_NORMAL;
+			else if (t.contains("NORMAL") )
+				uncertaintyType=UncertaintyType.NORMAL;
 			else if ( t.contains("UNIFORM"))
 				uncertaintyType=UncertaintyType.NORMAL;
 			else if ( t.contains("TRIANGLE"))
@@ -603,5 +848,5 @@ public ProcessVOData(MappingCells cells){
 		}
 		return uncertaintyType;
 	}
-
+	
 }

@@ -175,6 +175,8 @@ class DBSearch {
 			Flow flow) {
 		try {
 			Category category = flow.getCategory();
+			if ( category == null && categoryName == null )
+				return true;
 			if (sameCategory(subCategoryName, category)) {
 				if (subCategoryName == null)
 					return true;

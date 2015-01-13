@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A wrapper for the database access and (semantic) search of entities for the
- * import of EcoSpold data sets.
+ * import of template data sets.
  */
 class DB {
 
