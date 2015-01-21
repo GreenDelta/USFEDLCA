@@ -44,9 +44,8 @@ import org.openlca.core.database.mysql.MySQLDatabase;
 import org.openlca.core.database.derby.DerbyDatabase;
 
 /**
- * Start USDA Template Program
- * Task: read data from Excel, saved to database
- * @author Y Radchenko
+ * Standalone command line program which exports a unit process to Excel.  Useful for development and testing. 
+ * @author Gary Moore
  */
 public class FedLCATemplateExportStart {
 
@@ -85,9 +84,9 @@ public class FedLCATemplateExportStart {
 		try {
 			readProperties();
 			databaseConnection();
-			if (database.createConnection() != null) {
+			if (database.createConnection() != null)
 				LOG.trace("Database Connection Successful");
-			} else
+			else
 				LOG.trace("Database Connection failed");
 			USFedLCAExporter export=new USFedLCAExporter(database,this.pid,this.of);
 			export.run();
@@ -136,15 +135,18 @@ public class FedLCATemplateExportStart {
 	}
 
 
-
+	/**
+	 * The -p -i options and output file name are required.
+	 * @param args
+	 * @throws ParseException
+	 * @throws Exception
+	 */
 	public static void main(String[] args) throws ParseException,Exception {		
 		CommandLineParser clp=new GnuParser();
 		final Options opts=new Options();
 		FedLCATemplateExportStart thisInstance=new FedLCATemplateExportStart();
-		opts.addOption("d","debug",false,"output debugging messasges");
 		opts.addOption("p","properties",true,"full path to the config properties file");
 		opts.addOption("i","id",true,"database id of the process to export");
-		opts.addOption("o","outfile",true,"output file name");
 		String[] remainargs;
 		try {
 			CommandLine cl=clp.parse(opts,args);
@@ -189,8 +191,7 @@ public class FedLCATemplateExportStart {
 		 *
 		 */
 		private void printUsage () {
-				System.err.println("usage:  importtemplate -d -p propertiesfile template.xls");
-				System.err.println("            -d  provide debugging output");
+				System.err.println("usage:  exporttemplate -p propertiesfile template.xls");
 				System.err.println("            -p  full path to properites file.");
 				System.err.println("            -i database id of the process to export ");
 				System.err.println("            template.xls Excel template to output ");

@@ -64,9 +64,9 @@ import org.openlca.io.UnitMapping;
  * Task: read data from Excel, saved to database
  * @author Y Radchenko
  */
-public class UsdaTemplateStart {
+public class FedLCATemplateImportStart {
 
-	private static final Log LOG = LogFactory.getLog(UsdaTemplateStart.class);
+	private static final Log LOG = LogFactory.getLog(FedLCATemplateImportStart.class);
 
 	private IDatabase database;
 	private IDataSet dataSet;
@@ -85,7 +85,7 @@ public class UsdaTemplateStart {
 	private List<ISICDataVO> isicDataVO;
 	private List<CostsVO> costsVO;
 	private static boolean flag= false;
-	public UsdaTemplateStart()
+	public FedLCATemplateImportStart()
 	{
 		
 	}
@@ -226,7 +226,7 @@ public class UsdaTemplateStart {
 	public static void main(String[] args) throws ParseException,Exception {		
 		CommandLineParser clp=new GnuParser();
 		final Options opts=new Options();
-		UsdaTemplateStart thisInstance=new UsdaTemplateStart();
+		FedLCATemplateImportStart thisInstance=new FedLCATemplateImportStart();
 		opts.addOption("d","debug",false,"output debugging messasges");
 		opts.addOption("p","properties",true,"full path to the config properties file");
 		String[] remainargs;
