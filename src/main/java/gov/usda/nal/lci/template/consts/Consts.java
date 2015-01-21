@@ -31,12 +31,12 @@ public final class Consts {
 	public static final String META_CATEGORIZATION_INFO = "Categorization";
 	public static final int GENERAL_INFORMATION_PAGE = 1;
 	public static final int EXCHANGES_PAGE = 2;
+	public static final int ALLOCATION_PAGE= 6;
 	public static final int ADMINISTRATIVE_INFORMATION_PAGE = 3;
 	public static final int MODELING_VALIDATION_PAGE = 4;
 	public static final int PARAMETERS_PAGE = 5;
-	public static final int COSTS_PAGE = 6;
-	public static final int ACTORS_PAGE = 7;
-	public static final int SOURCES_PAGE = 8;
-	public static final int ISIC_PAGE = 11;
+	public static final int COSTS_PAGE = 7;
+	public static final int ACTORS_PAGE = 8;
+	public static final int SOURCES_PAGE =9;
 	
 }
