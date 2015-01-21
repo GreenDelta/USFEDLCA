@@ -31,17 +31,19 @@ import gov.usda.nal.lci.template.domain.Person;
 import gov.usda.nal.lci.template.domain.ReferenceFunction;
 import gov.usda.nal.lci.template.domain.Source;
 import gov.usda.nal.lci.template.domain.ProcessInformation;
+import gov.usda.nal.lci.template.domain.Allocation;
 
 public interface IDataSet {
 
 	public void initializeData(List<Person> persons, List<Source> sources,
-			ProcessInformation process, List<Exchange> exchanges,List<Parameter> parameters,
+			ProcessInformation process, List<Exchange> exchanges,List<Parameter> parameters,List<Allocation> allocations,
 			ReferenceFunction referenceFunction);
 
 	public List<Person> getPersons();
 	public List<Source> getSources();
 	public ProcessInformation getProcessInformation();
 	public List<Exchange> getExchanges();
+	public List<Allocation> getAllocations();
 	public List<Parameter> getParameters();
 	public ReferenceFunction getReferenceFunction();
 

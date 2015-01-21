@@ -31,6 +31,7 @@ import gov.usda.nal.lci.template.domain.Person;
 import gov.usda.nal.lci.template.domain.ProcessInformation;
 import gov.usda.nal.lci.template.domain.ReferenceFunction;
 import gov.usda.nal.lci.template.domain.Source;
+import gov.usda.nal.lci.template.domain.Allocation;
 import gov.usda.nal.lci.template.support.IDataSet;
 
 public class UsdaTemplateDataSet implements IDataSet {
@@ -41,23 +42,15 @@ public class UsdaTemplateDataSet implements IDataSet {
 	private List<Exchange> exchanges;
 	private ReferenceFunction refFunction;
 	private List<Parameter> parameters;
+	private List<Allocation> allocations;
 
 	public UsdaTemplateDataSet() {
 
 	}
 
-	private void init() {
-		persons = getPersons();
-		sources = getSources();
-		process = getProcessInformation();
-		exchanges = getExchanges();
-		parameters = getParameters();
-		refFunction = getReferenceFunction();
-	}
-
 	public void initializeData(List<Person> persons, List<Source> sources,
 			ProcessInformation process, List<Exchange> exchanges,
-			List<Parameter> parameters,ReferenceFunction refFunction) {
+			List<Parameter> parameters,List<Allocation> allocations,ReferenceFunction refFunction) {
 		
 		this.persons = persons;
 		this.sources = sources;
@@ -65,31 +58,35 @@ public class UsdaTemplateDataSet implements IDataSet {
 		this.exchanges = exchanges;
 		this.parameters = parameters;
 		this.refFunction = refFunction;
-		init();
+		this.allocations=allocations;
 	}
 
 	public ReferenceFunction getReferenceFunction() {
-		return refFunction;
+		return this.refFunction;
 	}
 
 	public List<Person> getPersons() {
-		return persons;
+		return this.persons;
 	}
 
 	public List<Source> getSources() {
-		return sources;
+		return this.sources;
 	}
 
 	public ProcessInformation getProcessInformation() {
-		return process;
+		return this.process;
 	}
 
 	public List<Exchange> getExchanges() {
-		return exchanges;
+		return this.exchanges;
 	}
 
 	public List<Parameter> getParameters() {
-		return parameters;
+		return this.parameters;
+	}
+	public List<Allocation> getAllocations()
+	{
+		return this.allocations;
 	}
 
 }
