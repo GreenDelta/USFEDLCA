@@ -23,12 +23,11 @@
 *===========================================================================
 */
 package gov.usda.nal.lci.template.exporter;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.openlca.core.database.IDatabase;
 import org.openlca.core.database.ProcessDao;
+
 import org.openlca.core.model.Process;
 import org.openlca.io.ImportEvent;
 import org.slf4j.Logger;
@@ -41,6 +40,8 @@ import gov.usda.nal.lci.template.excel.ExcelWriter;
 
 
 /**
+ * <code>USFedLCAExporter</code> is the entry point {@link java.lang.Runnable} for the template exporter.  It is usually instantiated
+ * with a IDatabase connection, the row id of the process being exported and the output file name
  * @author Gary.Moore
  *
  */
@@ -114,8 +115,9 @@ public class USFedLCAExporter implements Runnable {
 	public void run() {
 		try {
 			fireEvent(this.outfile);
-			ProcessDao dao = new ProcessDao(database);
+			ProcessDao dao = new ProcessDao(this.database);
 			Process process = dao.getForId(this.pid);
+			
 			if (process == null || process.getDocumentation() == null) {
 				log.error("process "+this.pid.toString()+" was null or has no documentation: "
 						+ "not exported");
@@ -134,8 +136,11 @@ public class USFedLCAExporter implements Runnable {
 			log.error("failed to export process to FedLCATemplate", e);
 		}
 	}
-	
-	public void createWorkBook(Process p)
+	/**
+	 * <code>createWorkBook</code> builds and outputs each sheet in the workbook
+	 * @param p
+	 */
+	private void createWorkBook(Process p)
 	{
 		try {
 			new GeneralInformationSheet(this.getWriter().getWorkbook().getSheetAt(Consts.GENERAL_INFORMATION_PAGE)).updateSheet(p);
@@ -143,6 +148,7 @@ public class USFedLCAExporter implements Runnable {
 			new ModellingAndValidationSheet(this.getWriter().getWorkbook().getSheetAt(Consts.MODELING_VALIDATION_PAGE)).updateSheet(p);
 			new ActorsSheet(this.getWriter().getWorkbook().getSheetAt(Consts.ACTORS_PAGE)).updateSheet(p);
 			new ParametersSheet(this.getWriter().getWorkbook().getSheetAt(Consts.PARAMETERS_PAGE)).updateSheet(p);
+			new AllocationSheet(this.getWriter().getWorkbook().getSheetAt(Consts.ALLOCATION_PAGE)).updateSheet(p,this.database);
 			new SourcesSheet(this.getWriter().getWorkbook().getSheetAt(Consts.SOURCES_PAGE)).updateSheet(p);
 			new InputOutputSheet(this.getWriter().getWorkbook().getSheetAt(Consts.EXCHANGES_PAGE)).updateSheet(p);
 			new CostsSheet(this.getWriter().getWorkbook().getSheetAt(Consts.COSTS_PAGE)).updateSheet(p);
@@ -153,10 +159,6 @@ public class USFedLCAExporter implements Runnable {
 		}
 	}
 	
-	private void getProcessCostEntry(Long id )
-	{
-		
-	}
 	private void fireEvent(String dataSetName) {
 		log.trace("import data set {}", dataSetName);
 		if (this.eventBus == null)

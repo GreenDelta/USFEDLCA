@@ -24,16 +24,14 @@
 */
 package gov.usda.nal.lci.template.exporter;
 import java.io.IOException;
-import java.util.Map;
-import java.util.HashMap;
 
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Cell;
 import org.openlca.core.model.Category;
+import org.openlca.core.model.Exchange;
+import org.openlca.core.model.FlowType;
 import org.openlca.core.model.Process;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 /**
  * Base class for transferring contents of a Process object to the Excel Worksheets which make up 
  * a "FedLCATemplate".
@@ -66,6 +64,7 @@ public abstract class TemplateSheet {
 	 * @param s
 	 */
 	public abstract void updateSheet(Process p) throws TemplateExportException;
+	
 	/**
 	 * Returns true if an Object is not null
 	 * @param o
@@ -145,4 +144,13 @@ public abstract class TemplateSheet {
 			s=c.getName();
 		return s;
 	}
+	public int getInputGroup(Exchange e)
+	{
+		return e.getFlow().getFlowType().equals(FlowType.ELEMENTARY_FLOW)?4:5;
+	}
+	public   int getOutputGroup(Exchange e,Long qid)
+	{
+		return e.getId()==qid?0:e.getFlow().getFlowType().equals(FlowType.ELEMENTARY_FLOW)?4:5;
+	}
+	
 }

@@ -130,12 +130,5 @@ public class InputOutputSheet extends TemplateSheet {
 		
 
 	}
-	private int getInputGroup(Exchange e)
-	{
-		return e.getFlow().getFlowType().equals(FlowType.ELEMENTARY_FLOW)?4:5;
-	}
-	private int getOutputGroup(Exchange e,Long qid)
-	{
-		return e.getId()==qid?0:e.getFlow().getFlowType().equals(FlowType.ELEMENTARY_FLOW)?4:5;
-	}
+	
 }

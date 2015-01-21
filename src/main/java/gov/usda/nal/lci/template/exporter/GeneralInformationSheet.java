@@ -23,16 +23,23 @@
 *===========================================================================
 */
 package gov.usda.nal.lci.template.exporter;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
 import java.util.HashMap;
 
 import org.apache.poi.ss.usermodel.Sheet;
 import org.openlca.core.model.Process;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 /**
  * @author Gary.Moore
  *
  */
 public class GeneralInformationSheet extends TemplateSheet {
+	private Logger log = LoggerFactory.getLogger(this.getClass());
 	//*TODO move this to JSON
 	private static final Map<String,Short> rows;
 	static
@@ -76,8 +83,8 @@ public class GeneralInformationSheet extends TemplateSheet {
 				s.getRow(rows.get("infrastruct")).getCell(3).setCellValue(p.isInfrastructureProcess());
 				s.getRow(rows.get("geocomment")).getCell(3).setCellValue(p.getDocumentation().getGeography());
 				s.getRow(rows.get("location")).getCell(3).setCellValue(p.getLocation().getCode());
-				s.getRow(rows.get("sdate")).getCell(3).setCellValue(p.getDocumentation().getValidFrom());
-				s.getRow(rows.get("edate")).getCell(3).setCellValue(p.getDocumentation().getValidUntil());
+				s.getRow(rows.get("sdate")).getCell(3).setCellValue(getDate(p.getDocumentation().getValidFrom()));
+				s.getRow(rows.get("edate")).getCell(3).setCellValue(getDate(p.getDocumentation().getValidUntil()));
 				s.getRow(rows.get("timecomment")).getCell(3).setCellValue(p.getDocumentation().getTime());
 				s.getRow(rows.get("cat0")).getCell(3).setCellValue(p.getCategory().getParentCategory().getName());
 				s.getRow(rows.get("cat1")).getCell(3).setCellValue(p.getCategory().getName());
@@ -101,5 +108,22 @@ public class GeneralInformationSheet extends TemplateSheet {
 			s[i]=tt[i];
 		return s;
 		
+	}
+	/*
+	 * Formats a Date to MM/dd/yyyy
+	 */
+	private String getDate(Date d) 
+	{
+		String ds="";
+		try {
+			// jump through hoop to prevent 06/13/0012 conversation
+			DateFormat df= new SimpleDateFormat("MM/dd/yy");
+			ds= new SimpleDateFormat("MM/dd/yyyy").format(df.parse(df.format(d)));
+		}
+		catch (ParseException e)
+		{
+			log.error("Unexpected error occured",e);
+		}
+		return ds;
 	}
 }
