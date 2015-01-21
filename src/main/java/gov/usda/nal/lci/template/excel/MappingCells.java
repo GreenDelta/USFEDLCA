@@ -32,6 +32,7 @@ import gov.usda.nal.lci.template.vo.ExchangeDataVO;
 import gov.usda.nal.lci.template.vo.ISICDataVO;
 import gov.usda.nal.lci.template.vo.MetaDataVO;
 import gov.usda.nal.lci.template.vo.ParametersVO;
+import  gov.usda.nal.lci.template.vo.AllocationVO;
 import gov.usda.nal.lci.template.vo.ProcessInformationVO;
 import gov.usda.nal.lci.template.vo.SourceInformationVO;
 
@@ -62,6 +63,7 @@ public class MappingCells {
 	private InputStream template;
 	private List<ExchangeDataVO> exchangeDataVO;
 	private List<ParametersVO> parameterDataVO;
+	private List<AllocationVO> allocationVO;
 	private List<ActorVO> actorVO;
 	private List<SourceInformationVO> sourceVO;
 	private ProcessInformationVO generalInfoVO;
@@ -95,6 +97,10 @@ public class MappingCells {
 		return parameterDataVO;
 	}
 
+	public List<AllocationVO> getAllocationVO() {
+		return this.allocationVO;
+	}
+	
 	public List<ActorVO> getActorData() {
 		return actorVO;
 	}
@@ -176,6 +182,7 @@ public class MappingCells {
 			admVO = getAdministrativeInformationFromMetaData(getSheetMetaData(pkg, map.get("metaData"),MetaDataVO.class, Consts.ADMINISTRATIVE_INFORMATION_PAGE));
 			modVO = getModelingAndValidationFromMetaData(getSheetMetaData(pkg, map.get("metaData"),MetaDataVO.class, Consts.MODELING_VALIDATION_PAGE));
 			parameterDataVO = getSheetParameterData(pkg, map.get("parameters"),ParametersVO.class);
+			allocationVO=getAllocationData(pkg,map.get("allocations"),AllocationVO.class,Consts.ALLOCATION_PAGE);
 			actorVO = getSheetActorData(pkg, map.get("actors"), ActorVO.class);
 			sourceVO = getSheetSourceInformationData(pkg, map.get("sources"),SourceInformationVO.class);
 			costsVO = getSheetCostsData(pkg, map.get("costs"),CostsVO.class);
@@ -261,8 +268,28 @@ public class MappingCells {
 		return workSheetParameter.getValueList();
 
 	}
+	/**
+	 * CausalAllocations from the worksheet
+	 * @param pkg
+	 * @param cellMapping
+	 * @param causalAllocation
+	 * @param sheet
+	 * @return
+	 * @throws Exception
+	 */
+	private List<AllocationVO> getAllocationData(OPCPackage pkg,Map<String,String> cellMapping,Class<AllocationVO> allocation,int sheet) throws Exception
+	{
+		ExcelWorkSheetHandler<AllocationVO> workSheetAllocationData  = new ExcelWorkSheetHandler<AllocationVO>(
+				AllocationVO.class, cellMapping, 2);
+		ExcelReader excelReader = new ExcelReader(pkg, workSheetAllocationData);
+		excelReader.process(sheet);
+		if ( workSheetAllocationData.getValueList().isEmpty())
+		{
+			LOG.info("No Causal Allocation values were parsed.");
+		}
+		return workSheetAllocationData.getValueList();
+	}
 	
-
 	/**
 	 * GeneralInfo/Administrative/ModelingAndValidation have the same page structure
 	 * read excel speadsheet Meta Data into MetaDataVO
