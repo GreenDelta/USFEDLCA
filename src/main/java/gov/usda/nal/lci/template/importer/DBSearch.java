@@ -157,7 +157,7 @@ class DBSearch {
 			return Collections.emptyList();
 		}
 	}
-
+	
 	private boolean sameFlowType(gov.usda.nal.lci.template.domain.Exchange exchange, Flow flow) {
 		if (exchange.isElementaryFlow())
 			return flow.getFlowType() == FlowType.ELEMENTARY_FLOW;

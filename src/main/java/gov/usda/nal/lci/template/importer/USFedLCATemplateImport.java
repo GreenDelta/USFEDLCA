@@ -30,17 +30,22 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.lang3.StringUtils;
 import org.openlca.util.Strings;
 import org.openlca.io.FileImport;
 import org.openlca.io.ImportEvent;
 import org.openlca.io.KeyGen;
 import org.openlca.io.UnitMapping;
+
 import gov.usda.nal.lci.template.excel.MappingCells;
 import gov.usda.nal.lci.template.keys.UsdaKeyGen;
+
 import org.openlca.io.maps.FlowMap;
 import org.openlca.io.maps.MapType;
+
 import gov.usda.nal.lci.template.support.IDataSet;
+
 import org.openlca.core.database.IDatabase;
 import org.openlca.core.model.Actor;
 import org.openlca.core.model.AllocationFactor;
@@ -57,6 +62,7 @@ import org.openlca.core.model.UncertaintyType;
 import org.openlca.ecospold.IAllocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import com.google.common.eventbus.EventBus;
 /**
  * Parses a USDA Excel Template and creates OpenLCA objects and inserts them into a database.  For better or
@@ -320,7 +326,6 @@ public class USFedLCATemplateImport implements FileImport {
 	private void mapExchangesEntities(
 			List<gov.usda.nal.lci.template.domain.Exchange> inExchanges,
 			Process ioProcess) {
-		List<IAllocation> allocationlist=new ArrayList<IAllocation>();
 		int exchangecnt=0;
 		for (gov.usda.nal.lci.template.domain.Exchange inExchange : inExchanges) {
 			try {
@@ -514,17 +519,27 @@ public class USFedLCATemplateImport implements FileImport {
 		}
 
 	}
+	/**
+	 * <code>mapAllocations</code> iterates over the list of Allocation objects we've gathered
+	 * and attempts to link each to localExchangeCache
+	 * @param process
+	 * @param dataset
+	 */
 	private void mapAllocations(Process process, IDataSet dataset) {
 		for ( gov.usda.nal.lci.template.domain.Allocation ialloc : dataset.getAllocations() )
 		{
+			//iterate our localExchangeCache and match up to allocation objects
 			for ( int i=0;i<localExchangeCache.size();i++ )
 			{
 				Exchange product=localExchangeCache.get(i);
 				if ( product.getFlow().getName().equals(ialloc.getReferenceToCoProduct()))
 				{
+					
 					AllocationFactor allocationFactor = new AllocationFactor();
 					allocationFactor.setProductId(product.getFlow().getId());
-					allocationFactor.setValue(ialloc.getValue());
+					//force our float into the double preserving the decimal places
+					double factor = Math.round(ialloc.getValue() * 10000000d) / 10000000d;
+					allocationFactor.setValue(factor);
 					allocationFactor.setAllocationType(ialloc.getAllocationMethod());
 					// get flow exchange for Causal 
 					if ( ialloc.getAllocationMethod() == AllocationMethod.CAUSAL)
@@ -543,26 +558,6 @@ public class USFedLCATemplateImport implements FileImport {
 				}
 			}
 		}
-		/*
-		for (IAllocation allocation : allocations) {
-			double factor = Math.round(allocation.getFraction() * 10000d) / 1000000d;
-			Exchange product = localExchangeCache.get(allocation
-					.getReferenceToCoProduct());
-			for (Integer i : allocation.getReferenceToInputOutput()) {
-				Exchange exchange = localExchangeCache.get(i);
-				if (exchange == null) {
-					log.warn("allocation factor points to an exchange that "
-							+ "does not exist: {}", i);
-					continue;
-				}
-				AllocationFactor allocationFactor = new AllocationFactor();
-				allocationFactor.setProductId(product.getFlow().getId());
-				allocationFactor.setValue(factor);
-				allocationFactor.setAllocationType(AllocationMethod.CAUSAL);
-				allocationFactor.setExchange(exchange);
-				process.getAllocationFactors().add(allocationFactor);
-			}
-		}*/
 	}
 	private int findAllocationExchangeFromLocalExchangeCache(gov.usda.nal.lci.template.domain.Allocation a)
 	{

@@ -487,7 +487,7 @@ public ProcessVOData(MappingCells cells){
 		
 		if ( coprods.getCoprod() != null )
 		{
-			for ( int i=7;i<avol.size();i++)
+			for ( int i=5;i<avol.size();i++)
 			{
 				if ( avol.get(i).getFlowName() != null )
 					al.addAll(makeAllocations(avol.get(i),coprods,AllocationMethod.CAUSAL));
