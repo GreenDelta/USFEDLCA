@@ -34,19 +34,13 @@ import java.io.Serializable;
 public class MetaDataVO extends BaseVO {
 	private final static long serialVersionUID = 1L;
 	
-	private String emptyColumn;
 	private String metaTitle;
 	private String metaName;
 	private String metaValue;
 	private String dataType;
 	private String metaDescription;
 	
-	public String getEmptyColumn() {
-		return emptyColumn;
-	}
-	public void setEmptyColumn(String emptyColumn) {
-		this.emptyColumn = emptyColumn;
-	}
+	
 	/*
 	 * General Information or Administrative Information or 
 	 * Modeling and Validation

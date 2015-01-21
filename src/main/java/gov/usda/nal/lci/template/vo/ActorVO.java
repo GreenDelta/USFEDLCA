@@ -31,7 +31,6 @@ import java.io.Serializable;
 public class ActorVO extends BaseVO {
 	
 	private final static long serialVersionUID = 1L;
-	private String emptyColumn;
 	private String name;
 	private String description;
 	private String address; 
@@ -43,12 +42,7 @@ public class ActorVO extends BaseVO {
 	private String website;
 	private String zipcode;
 	
-	public String getEmptyColumn() {
-		return emptyColumn;
-	}
-	public void setEmptyColumn(String emptyColumn) {
-		this.emptyColumn = emptyColumn;
-	}
+	
 	public String getName() {
 		return name;
 	}

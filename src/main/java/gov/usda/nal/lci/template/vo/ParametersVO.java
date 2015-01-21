@@ -31,7 +31,6 @@ import java.io.Serializable;
 public class ParametersVO extends BaseVO {
 	private final static long serialVersionUID = 1L;
 	
-	private String emptyColumn;
 	private String name;
 	private String resultingValue;
 	private String uncertaintyType;
@@ -41,12 +40,7 @@ public class ParametersVO extends BaseVO {
 	private String minimumValue;
 	private String maximumValue; 
 	private String description;
-	public String getEmptyColumn() {
-		return emptyColumn;
-	}
-	public void setEmptyColumn(String emptyColumn) {
-		this.emptyColumn = emptyColumn;
-	}
+	
 	public String getName() {
 		return name;
 	}

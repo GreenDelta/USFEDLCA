@@ -35,7 +35,6 @@ import java.io.Serializable;
 public class ExchangeDataVO extends BaseVO {
 	
 	private final static long serialVersionUID = 1L;
-	private String emptyColumn;
 	private String inputGroup;
 	private String outputGroup;
 	private String flowName; 
@@ -63,12 +62,7 @@ public class ExchangeDataVO extends BaseVO {
 	private String causal;
 	
 	
-	public String getEmptyColumn() {
-		return emptyColumn;
-	}
-	public void setEmptyColumn(String emptyColumn) {
-		this.emptyColumn = emptyColumn;
-	}
+	
 	public String getInputGroup() {
 		return inputGroup;
 	}
@@ -225,7 +219,7 @@ public class ExchangeDataVO extends BaseVO {
 	
 	@Override
 	public String toString() {
-		return "ExchangeDataVO [emptyColumn=" + emptyColumn + ", inputGroup="
+		return "ExchangeDataVO [ inputGroup="
 				+ inputGroup + ", outputGroup=" + outputGroup + ", flowName="
 				+ flowName + ", category=" + category + ", subCategory="
 				+ subCategory + ", unit=" + unit + ", amount=" + amount

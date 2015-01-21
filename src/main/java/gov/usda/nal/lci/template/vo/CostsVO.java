@@ -31,17 +31,10 @@ import java.io.Serializable;
 public class CostsVO extends BaseVO {
 	private final static long serialVersionUID = 1L;
 	
-	private String emptyColumn;
 	private String costCategory;
 	private String amount;
 	private String costFixed;
 	
-	public String getEmptyColumn() {
-		return emptyColumn;
-	}
-	public void setEmptyColumn(String emptyColumn) {
-		this.emptyColumn = emptyColumn;
-	}
 	public String getCostCategory() {
 		return costCategory;
 	}

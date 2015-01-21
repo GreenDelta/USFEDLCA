@@ -31,7 +31,6 @@ import java.io.Serializable;
 public class SourceInformationVO extends BaseVO {
 	private final static long serialVersionUID = 1L;
 	
-	private String emptyColumn;
 	private String firstAuthor;
 	private String year;
 	private String description;
@@ -45,12 +44,7 @@ public class SourceInformationVO extends BaseVO {
 	public void setCategory(String category) {
 		this.category = category;
 	}
-	public String getEmptyColumn() {
-		return emptyColumn;
-	}
-	public void setEmptyColumn(String emptyColumn) {
-		this.emptyColumn = emptyColumn;
-	}
+	
 	public String getFirstAuthor() {
 		return firstAuthor;
 	}
